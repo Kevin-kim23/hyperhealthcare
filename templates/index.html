@@ -11,7 +11,7 @@
     <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <span class="text-xl font-bold text-emerald-600 flex items-center gap-2">
-                🏥 My Health Log <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-normal">v3.5 SQL</span>
+                🏥 My Health Log <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-normal">v4.4 SQL</span>
             </span>
             <div class="text-sm text-slate-500 font-medium">환영합니다, 동환님</div>
         </div>
@@ -99,17 +99,19 @@
             e.preventDefault();
             const payload = {
                 date: document.getElementById('date').value,
-                weight: floatValue('weight'),
-                height: floatValue('height'),
-                systolic: intValue('systolic'),
-                diastolic: intValue('diastolic'),
-                blood_sugar: intValue('blood_sugar')
+                weight: parseFloat(document.getElementById('weight').value),
+                height: parseFloat(document.getElementById('height').value),
+                systolic: parseInt(document.getElementById('systolic').value),
+                diastolic: parseInt(document.getElementById('diastolic').value),
+                blood_sugar: parseInt(document.getElementById('blood_sugar').value),
+                steps: 0,
+                sleep_hours: 0.0,
+                memo: ""
             };
 
             const response = await fetch('/records', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                json: true,
                 body: JSON.stringify(payload)
             });
 
@@ -119,9 +121,6 @@
                 fetchHistory();
             }
         });
-
-        function floatValue(id) { return parseFloat(document.getElementById(id).value); }
-        function intValue(id) { return parseInt(document.getElementById(id).value); }
 
         function handleWarningBanner(data) {
             const banner = document.getElementById('warning-banner');
@@ -142,25 +141,28 @@
                 const tbody = document.getElementById('history-tbody');
                 tbody.innerHTML = '';
                 
-                json.data.forEach(r => {
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-50/80 transition duration-100";
-                    tr.innerHTML = `
-                        <td class="py-3 px-2 font-bold text-slate-400">${r.id}</td>
-                        <td class="py-3 px-2 font-semibold text-slate-900">${r.date}</td>
-                        <td class="py-3 px-2"><span class="px-2 py-1 bg-slate-100 rounded-md text-xs">${r.bmi} (${r.bmi_status})</span></td>
-                        <td class="py-3 px-2">${getBadge(r.blood_pressure_status)}</td>
-                        <td class="py-3 px-2">${getBadge(r.blood_sugar_status)}</td>
-                        <td class="py-3 px-2 text-center">
-                            <button onclick="deleteRecord(${r.id})" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-2 py-1 rounded border border-rose-100 hover:bg-rose-50">삭제</button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                if (json.data && json.data.length > 0) {
+                    json.data.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-50/80 transition duration-100";
+                        tr.innerHTML = `
+                            <td class="py-3 px-2 font-bold text-slate-400">${r.id}</td>
+                            <td class="py-3 px-2 font-semibold text-slate-900">${r.date}</td>
+                            <td class="py-3 px-2"><span class="px-2 py-1 bg-slate-100 rounded-md text-xs">${r.bmi} (${r.bmi_status})</span></td>
+                            <td class="py-3 px-2">${getBadge(r.blood_pressure_status)}</td>
+                            <td class="py-3 px-2">${getBadge(r.blood_sugar_status)}</td>
+                            <td class="py-3 px-2 text-center">
+                                <button onclick="deleteRecord(${r.id})" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-2 py-1 rounded border border-rose-100 hover:bg-rose-50">삭제</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
             }
         }
 
         function getBadge(status) {
+            if (!status) return '';
             if (status === '정상') return `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs">${status}</span>`;
             if (status.includes('주의') || status.includes('전단계') || status.includes('전고혈압')) return `<span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs">${status}</span>`;
             return `<span class="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-semibold">${status}</span>`;
