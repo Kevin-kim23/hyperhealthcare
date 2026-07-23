@@ -1,2 +1,4 @@
+Plaintext
 venv/
 __pycache__/
+*.db
