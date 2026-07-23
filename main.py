@@ -1,10 +1,24 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-# 💡 새로 바꾼 sqlite3 기반 database.py 수입!
+import os
 import database
 
-app = FastAPI(title="마이 헬스 로그 API", version="3.5 (SQL 버전)")
+app = FastAPI(title="마이 헬스 로그 API", version="4.1 (절대 경로 고정 버전)")
 
+# 💡 현재 main.py가 있는 폴더 위치를 기준으로 templates 경로를 강제로 고정합니다!
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+
+# 🌐 1. 메인 루트 (HTML 대시보드 렌더링)
+@app.get("/", response_class=HTMLResponse)
+def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+# 📝 Pydantic 검증 스키마
 class RecordIn(BaseModel):
     date: str
     weight: float
@@ -16,16 +30,13 @@ class RecordIn(BaseModel):
     sleep_hours: float = 0.0
     memo: str = ""
 
-@app.get("/")
-def read_root():
-    return {"message": "마이 헬스 로그 API - SQLite3 데이터베이스 엔진 가동 중"}
 
-# [POST /records] 수치 연산 후 SQL 서버에 직접 저장
+# 🚀 2. [POST] 데이터 추가 및 SQL 저장
 @app.post("/records")
 def create_record(record: RecordIn):
     data = record.model_dump()
     
-    # [Day 2] 자동 건강 분석 알고리즘 가동
+    # [Day 2] 건강 분석 알고리즘
     height_m = data["height"] / 100.0
     bmi = round(data["weight"] / (height_m ** 2), 2) if height_m > 0 else 0.0
     data["bmi"] = bmi
@@ -46,30 +57,28 @@ def create_record(record: RecordIn):
     else: data["blood_sugar_status"] = "당뇨"
         
     if data["blood_pressure_status"] == "고혈압" or data["blood_sugar_status"] == "당뇨":
-        data["warning"] = 1  # SQLite 호환을 위해 정수형(1/0) 처리
+        data["warning"] = 1
         data["warning_message"] = "⚠️ 고위험 수치가 감지되었습니다. 전문의와 상담을 권장합니다."
     else:
         data["warning"] = 0
         data["warning_message"] = ""
 
-    # 💡 메모리 변수 대신 database.py의 SQL 저장 함수에 바로 밀어넣기!
     new_id = database.save_record(data)
     data["id"] = new_id
-    
-    # 불리언(Boolean) 가독성을 위해 응답 시 변환
     data["warning"] = True if data["warning"] == 1 else False
     return data
 
-# [GET /records] 테이블 전체 행을 SELECT문으로 긁어오기
+
+# 📊 3. [GET] 전체 기록 조회
 @app.get("/records")
 def get_records():
     sql_records = database.get_all_records()
-    # 응답 데이터 가독성 정제
     for r in sql_records:
         r["warning"] = True if r["warning"] == 1 else False
     return {"total_count": len(sql_records), "data": sql_records}
 
-# [GET /records/{record_id}] 특정 행만 WHERE문으로 조회하기
+
+# 🔍 4. [GET] 단건 상세 조회
 @app.get("/records/{record_id}")
 def get_record(record_id: int):
     res = database.get_record_by_id(record_id)
@@ -78,10 +87,11 @@ def get_record(record_id: int):
     res["warning"] = True if res["warning"] == 1 else False
     return res
 
-# [DELETE /records/{record_id}] 특정 행을 DELETE문으로 날리기
+
+# ❌ 5. [DELETE] 기록 삭제
 @app.delete("/records/{record_id}")
 def delete_record(record_id: int):
     success = database.delete_record_by_id(record_id)
     if not success:
         raise HTTPException(status_code=404, detail="삭제할 기록이 없습니다.")
-    return {"message": f"ID {record_id} 기록이 SQL 데이터베이스에서 영구 삭제되었습니다."}
+    return {"message": f"ID {record_id} 기록이 SQL에서 삭제되었습니다."}
