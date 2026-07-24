@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import os
@@ -9,6 +10,8 @@ app = FastAPI(title="마이 헬스 로그 API 2.0", version="5.0 (회원제 도�
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 # --- 데이터 검증 모델 (Pydantic) ---
 class UserAuth(BaseModel):
