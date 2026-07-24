@@ -1,96 +1,100 @@
 import sqlite3
-import os
 
-DB_FILE = "health_log.db"
+# V2 용 새로운 데이터베이스 파일 생성
+DB_NAME = "health_log_v2.db"
 
-# [SQL 연결 함수] DB 파일과 소통하는 가드레일을 엽니다.
-def get_connection():
-    conn = sqlite3.connect(DB_FILE)
-    # 데이터를 딕셔너리(Dict) 형태로 예쁘게 꺼내오도록 설정
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# [테이블 생성 함수] 서버 초기 구동 시 'records' 테이블이 없으면 SQL 명령어로 자동 생성합니다.
-def create_table():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS records (
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # 1. 회원 정보 테이블
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT NOT NULL,
-            weight REAL,
-            height REAL,
-            systolic INTEGER,
-            diastolic INTEGER,
-            blood_sugar INTEGER,
-            steps INTEGER DEFAULT 0,
-            sleep_hours REAL DEFAULT 0.0,
-            memo TEXT,
-            bmi REAL,
-            bmi_status TEXT,
-            blood_pressure_status TEXT,
-            blood_sugar_status TEXT,
-            warning INTEGER,
-            warning_message TEXT
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
         )
-    """)
+    ''')
+    
+    # 2. 개인별 건강 기록 테이블 (user_id 외래키 추가)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS health_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date TEXT, weight REAL, height REAL,
+            systolic INTEGER, diastolic INTEGER, blood_sugar INTEGER,
+            bmi REAL, bmi_status TEXT, blood_pressure_status TEXT,
+            blood_sugar_status TEXT, warning INTEGER, warning_message TEXT,
+            steps INTEGER, sleep_hours REAL, memo TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
     conn.commit()
     conn.close()
 
-# 💡 database.py가 최초 구동될 때 자동으로 테이블 설계도를 실행합니다.
-create_table()
+# --- 회원 가입 & 로그인 로직 ---
+def create_user(username, password):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+        conn.commit()
+        return True # 가입 성공
+    except sqlite3.IntegrityError:
+        return False # 이미 존재하는 아이디
+    finally:
+        conn.close()
 
-# [SQL 저장 로직] 사용자가 입력하고 연산된 값을 SQL INSERT 쿼리문으로 영구 적재합니다.
-def save_record(data: dict):
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    query = """
-        INSERT INTO records (
-            date, weight, height, systolic, diastolic, blood_sugar, steps, sleep_hours, memo,
-            bmi, bmi_status, blood_pressure_status, blood_sugar_status, warning, warning_message
-        ) VALUES (
-            :date, :weight, :height, :systolic, :diastolic, :blood_sugar, :steps, :sleep_hours, :memo,
-            :bmi, :bmi_status, :blood_pressure_status, :blood_sugar_status, :warning, :warning_message
-        )
-    """
-    cursor.execute(query, data)
+def verify_user(username, password):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT id FROM users WHERE username=? AND password=?", (username, password))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return row[0] # 로그인 성공 시 user_id (고유번호) 반환
+    return None
+
+# --- 건강 기록 CRUD 로직 (user_id 연동) ---
+def save_record(user_id, data):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO health_logs (
+            user_id, date, weight, height, systolic, diastolic, blood_sugar,
+            bmi, bmi_status, blood_pressure_status, blood_sugar_status,
+            warning, warning_message, steps, sleep_hours, memo
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        user_id, data["date"], data["weight"], data["height"],
+        data["systolic"], data["diastolic"], data["blood_sugar"],
+        data.get("bmi", 0), data.get("bmi_status", ""),
+        data.get("blood_pressure_status", ""), data.get("blood_sugar_status", ""),
+        data.get("warning", 0), data.get("warning_message", ""),
+        data.get("steps", 0), data.get("sleep_hours", 0.0), data.get("memo", "")
+    ))
+    new_id = c.lastrowid
     conn.commit()
-    
-    # 방금 들어간 데이터의 고유 자동 증가 ID값 가져오기
-    new_id = cursor.lastrowid
     conn.close()
     return new_id
 
-# [SQL 전체 조회 로직] 테이블에 쌓인 모든 데이터를 SELECT문으로 가져옵니다.
-def get_all_records():
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM records ORDER BY id ASC")
-    rows = cursor.fetchall()
+def get_records_by_user(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM health_logs WHERE user_id=? ORDER BY date DESC, id DESC", (user_id,))
+    rows = c.fetchall()
     conn.close()
-    # sqlite3 결과를 파이썬 리스트/딕셔너리 형태로 가공해서 리턴
     return [dict(row) for row in rows]
 
-# [SQL 단건 조회 로직] WHERE 조건절을 이용해 특정 ID만 골라 뽑아냅니다.
-def get_record_by_id(record_id: int):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM records WHERE id = ?", (record_id,))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-# [SQL 삭제 로직] DELETE 쿼리문으로 하드디스크 DB에서 깔끔하게 날려버립니다.
-def delete_record_by_id(record_id: int):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM records WHERE id = ?", (record_id,))
-    if not cursor.fetchone():
-        conn.close()
-        return False
-    
-    cursor.execute("DELETE FROM records WHERE id = ?", (record_id,))
+def delete_record_by_id(user_id, record_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM health_logs WHERE id=? AND user_id=?", (record_id, user_id))
+    deleted = c.rowcount > 0
     conn.commit()
     conn.close()
-    return True
+    return deleted
+
+# 파일이 실행될 때 테이블이 없으면 자동 생성
+init_db()
