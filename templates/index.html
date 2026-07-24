@@ -2,181 +2,211 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Health Log AI Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
-
-    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <span class="text-xl font-bold text-emerald-600 flex items-center gap-2">
-                🏥 My Health Log <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-normal">v4.4 SQL</span>
-            </span>
-            <div class="text-sm text-slate-500 font-medium">환영합니다, 동환님</div>
-        </div>
-    </nav>
-
-    <main class="max-w-6xl mx-auto px-4 py-8">
+    <title>마이 헬스 로그 2.0</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0fdf4; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1, h2 { color: #059669; text-align: center; }
         
-        <div id="warning-banner" class="hidden mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-center gap-3 shadow-sm">
-            <span class="text-xl">⚠️</span>
-            <div class="font-medium" id="warning-text"></div>
+        /* 로그인 폼 전용 스타일 */
+        .auth-box { max-width: 350px; margin: 50px auto; padding: 30px; border: 1px solid #a7f3d0; border-radius: 12px; background-color: #ecfdf5; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .auth-box input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        
+        /* 공통 폼 스타일 */
+        input[type="number"], input[type="date"] { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        button { background-color: #10b981; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; margin-top: 10px; font-weight: bold; }
+        button:hover { background-color: #059669; }
+        .btn-secondary { background-color: #64748b; margin-top: 5px; }
+        .btn-secondary:hover { background-color: #475569; }
+        
+        /* 표 스타일 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: center; }
+        th { background-color: #10b981; color: white; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .warning { color: #ef4444; font-weight: bold; }
+        
+        /* 상단 네비게이션 바 */
+        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ecfdf5; padding-bottom: 10px; margin-bottom: 20px; }
+        .header-bar button { width: auto; background-color: #f43f5e; padding: 8px 20px; font-size: 14px; margin: 0; }
+        .header-bar button:hover { background-color: #e11d48; }
+        
+        /* 입력 그리드 */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="auth-section" class="auth-box">
+            <h2>🔐 마이 헬스 로그 2.0</h2>
+            <input type="text" id="username" placeholder="아이디를 입력하세요">
+            <input type="password" id="password" placeholder="비밀번호를 입력하세요">
+            <button onclick="login()">로그인</button>
+            <button class="btn-secondary" onclick="signup()">1초 회원가입</button>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
-                <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-900">📝 오늘 기록하기</h2>
-                <form id="health-form" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">측정 날짜</label>
-                        <input type="date" id="date" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-medium">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">키 (cm)</label>
-                            <input type="number" id="height" step="0.1" value="175" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-medium">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">몸무게 (kg)</label>
-                            <input type="number" id="weight" step="0.1" value="70" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-medium">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">최고 혈압(수축)</label>
-                            <input type="number" id="systolic" value="115" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-medium">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">최저 혈압(이완)</label>
-                            <input type="number" id="diastolic" value="75" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-medium">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">공복 혈당 (mg/dL)</label>
-                        <input type="number" id="blood_sugar" value="95" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 text-sm font-medium">
-                    </div>
-                    <button type="submit" class="w-full py-3 bg-emerald-600 text-white rounded-lg font-bold text-sm shadow-md hover:bg-emerald-700 transition duration-150">
-                        🚀 AI 건강 진단 및 SQL 저장
-                    </button>
-                </form>
+        <div id="dashboard-section" style="display: none;">
+            <div class="header-bar">
+                <h2 style="margin: 0;">🌿 환영합니다! 내 건강 관리</h2>
+                <button onclick="logout()">로그아웃</button>
             </div>
-
-            <div class="lg:grid-cols-1 lg:col-span-2 space-y-6">
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-lg font-bold text-slate-900">🗄️ 과거 히스토리 (SQLite 로깅)</h2>
-                        <button onclick="fetchHistory()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition duration-150">🔄 새로고침</button>
-                    </div>
-                    
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                    <th class="py-3 px-2">ID</th>
-                                    <th class="py-3 px-2">날짜</th>
-                                    <th class="py-3 px-2">BMI 지수</th>
-                                    <th class="py-3 px-2">혈압 판정</th>
-                                    <th class="py-3 px-2">혈당 판정</th>
-                                    <th class="py-3 px-2 text-center">동작</th>
-                                </tr>
-                            </thead>
-                            <tbody id="history-tbody" class="text-sm font-medium text-slate-600 divide-y divide-slate-50">
-                                </tbody>
-                        </table>
-                    </div>
+            
+            <div style="background-color: #ecfdf5; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+                <h3 style="margin-top: 0; color: #047857;">📝 오늘의 건강 상태 기록</h3>
+                <div class="form-grid">
+                    <div><label>측정 날짜</label><input type="date" id="date"></div>
+                    <div><label>몸무게 (kg)</label><input type="number" id="weight" step="0.1" placeholder="예: 70.5"></div>
+                    <div><label>키 (cm)</label><input type="number" id="height" step="0.1" placeholder="예: 175.0"></div>
+                    <div><label>수축기 혈압</label><input type="number" id="systolic" placeholder="최고 혈압"></div>
+                    <div><label>이완기 혈압</label><input type="number" id="diastolic" placeholder="최저 혈압"></div>
+                    <div><label>공복 혈당</label><input type="number" id="blood_sugar" placeholder="혈당 수치"></div>
                 </div>
+                <button onclick="saveRecord()">🚀 AI 건강 진단 및 장부 저장</button>
             </div>
+
+            <h3 style="color: #047857;">📊 나만의 건강 히스토리</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>날짜</th>
+                        <th>체격 (체중/키)</th>
+                        <th>BMI 판정</th>
+                        <th>혈압 판정</th>
+                        <th>혈당 판정</th>
+                        <th>AI 경고/진단</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="record-tbody">
+                    </tbody>
+            </table>
         </div>
-    </main>
+    </div>
 
     <script>
-        // 오늘 날짜 기본 세팅
-        document.getElementById('date').value = new Date().toISOString().substring(0, 10);
+        // 현재 로그인한 사용자의 입장권(토큰)을 저장하는 변수
+        let currentUserToken = null;
 
-        // API 연동: 건강 일지 제출 처리
-        document.getElementById('health-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        // 모든 통신에 사용할 공통 신분증(헤더) 설정
+        function getHeaders() {
+            return {
+                "Content-Type": "application/json",
+                "x-user-id": currentUserToken
+            };
+        }
+
+        // [기능 1] 회원가입
+        async function signup() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(!u || !p) return alert("아이디와 비밀번호를 모두 입력해주세요.");
+
+            const res = await fetch("/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            const data = await res.json();
+            if(res.ok) alert(data.message + " 바로 로그인을 진행해주세요!");
+            else alert("가입 실패: " + data.detail);
+        }
+
+        // [기능 2] 로그인 (성공 시 화면 전환)
+        async function login() {
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            if(!u || !p) return alert("아이디와 비밀번호를 입력해주세요.");
+
+            const res = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: u, password: p })
+            });
+            const data = await res.json();
+            
+            if(res.ok) {
+                // 서버가 발급한 신분증(ID)을 주머니에 쏙 저장
+                currentUserToken = data.access_token; 
+                
+                // 로그인 창은 숨기고, 대시보드 창을 보여줌
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('dashboard-section').style.display = 'block';
+                document.getElementById('date').valueAsDate = new Date(); // 입력 폼 오늘 날짜로 세팅
+                
+                alert(data.message);
+                fetchRecords(); // 입장하자마자 내 기록 불러오기!
+            } else {
+                alert("로그인 실패: " + data.detail);
+            }
+        }
+
+        // [기능 3] 로그아웃 (화면 원복)
+        function logout() {
+            currentUserToken = null; // 신분증 파기
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('dashboard-section').style.display = 'none';
+            document.getElementById('username').value = "";
+            document.getElementById('password').value = "";
+        }
+
+        // [기능 4] 기록 저장하기 (신분증 첨부)
+        async function saveRecord() {
             const payload = {
                 date: document.getElementById('date').value,
-                weight: parseFloat(document.getElementById('weight').value),
-                height: parseFloat(document.getElementById('height').value),
-                systolic: parseInt(document.getElementById('systolic').value),
-                diastolic: parseInt(document.getElementById('diastolic').value),
-                blood_sugar: parseInt(document.getElementById('blood_sugar').value),
-                steps: 0,
-                sleep_hours: 0.0,
-                memo: ""
+                weight: parseFloat(document.getElementById('weight').value) || 0,
+                height: parseFloat(document.getElementById('height').value) || 0,
+                systolic: parseInt(document.getElementById('systolic').value) || 0,
+                diastolic: parseInt(document.getElementById('diastolic').value) || 0,
+                blood_sugar: parseInt(document.getElementById('blood_sugar').value) || 0
             };
 
-            const response = await fetch('/records', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+            const res = await fetch("/records", {
+                method: "POST",
+                headers: getHeaders(), // 신분증 헤더 챙기기
                 body: JSON.stringify(payload)
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                handleWarningBanner(data);
-                fetchHistory();
-            }
-        });
-
-        function handleWarningBanner(data) {
-            const banner = document.getElementById('warning-banner');
-            const text = document.getElementById('warning-text');
-            if (data.warning) {
-                banner.classList.remove('hidden');
-                text.innerText = data.warning_message;
+            if(res.ok) {
+                alert("내 기록이 안전하게 저장되었습니다!");
+                fetchRecords(); // 저장 후 내 표 즉시 새로고침
             } else {
-                banner.classList.add('hidden');
+                alert("오류가 발생했습니다.");
             }
         }
 
-        // API 연동: 전체 리스트 가져와서 표에 박아넣기
-        async function fetchHistory() {
-            const response = await fetch('/records');
-            if (response.ok) {
-                const json = await response.json();
-                const tbody = document.getElementById('history-tbody');
-                tbody.innerHTML = '';
+        // [기능 5] 내 데이터만 쏙 뽑아오기
+        async function fetchRecords() {
+            const res = await fetch("/records", { headers: getHeaders() });
+            if(!res.ok) return;
+            const data = await res.json();
+            
+            const tbody = document.getElementById('record-tbody');
+            tbody.innerHTML = "";
+            
+            data.data.forEach(r => {
+                const tr = document.createElement('tr');
+                let warningHtml = r.warning ? `<span class="warning">${r.warning_message}</span>` : "✅ 양호함";
                 
-                if (json.data && json.data.length > 0) {
-                    json.data.forEach(r => {
-                        const tr = document.createElement('tr');
-                        tr.className = "hover:bg-slate-50/80 transition duration-100";
-                        tr.innerHTML = `
-                            <td class="py-3 px-2 font-bold text-slate-400">${r.id}</td>
-                            <td class="py-3 px-2 font-semibold text-slate-900">${r.date}</td>
-                            <td class="py-3 px-2"><span class="px-2 py-1 bg-slate-100 rounded-md text-xs">${r.bmi} (${r.bmi_status})</span></td>
-                            <td class="py-3 px-2">${getBadge(r.blood_pressure_status)}</td>
-                            <td class="py-3 px-2">${getBadge(r.blood_sugar_status)}</td>
-                            <td class="py-3 px-2 text-center">
-                                <button onclick="deleteRecord(${r.id})" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-2 py-1 rounded border border-rose-100 hover:bg-rose-50">삭제</button>
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
-                }
-            }
+                tr.innerHTML = `
+                    <td>${r.date}</td>
+                    <td>${r.weight}kg / ${r.height}cm</td>
+                    <td><b>${r.bmi}</b><br><span style="font-size:12px; color:#64748b;">${r.bmi_status}</span></td>
+                    <td><b>${r.systolic}/${r.diastolic}</b><br><span style="font-size:12px; color:#64748b;">${r.blood_pressure_status}</span></td>
+                    <td><b>${r.blood_sugar}</b><br><span style="font-size:12px; color:#64748b;">${r.blood_sugar_status}</span></td>
+                    <td>${warningHtml}</td>
+                    <td><button style="background-color:#94a3b8; padding:6px; font-size:12px;" onclick="deleteRecord(${r.id})">삭제</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
-        function getBadge(status) {
-            if (!status) return '';
-            if (status === '정상') return `<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs">${status}</span>`;
-            if (status.includes('주의') || status.includes('전단계') || status.includes('전고혈압')) return `<span class="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs">${status}</span>`;
-            return `<span class="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-semibold">${status}</span>`;
-        }
-
+        // [기능 6] 삭제
         async function deleteRecord(id) {
-            if(confirm("정말 이 일지를 삭제할까요?")) {
-                await fetch(`/records/${id}`, { method: 'DELETE' });
-                fetchHistory();
-            }
+            if(!confirm("이 기록을 삭제하시겠습니까?")) return;
+            const res = await fetch(`/records/${id}`, { method: "DELETE", headers: getHeaders() });
+            if(res.ok) fetchRecords();
+            else alert("삭제 권한이 없거나 실패했습니다.");
         }
-
-        // 초기 구동 로드
-        fetchHistory();
     </script>
 </body>
 </html>
